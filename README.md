@@ -233,3 +233,4 @@ kubectl logs -n deploy-scaler-system deployment/deploy-scaler-controller-manager
 3. **编辑 `internal/controller/scaler_controller.go`**：在 `Reconcile` 函数中编写实际的业务逻辑
 4. **测试**：`make run` 本地验证，或 `make deploy` 部署到测试集群
 # deploy-scaler
+# deploy-scaler
