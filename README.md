@@ -234,3 +234,4 @@ kubectl logs -n deploy-scaler-system deployment/deploy-scaler-controller-manager
 4. **测试**：`make run` 本地验证，或 `make deploy` 部署到测试集群
 # deploy-scaler
 # deploy-scaler
+# deploy-scaler
