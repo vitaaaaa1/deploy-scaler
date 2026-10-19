@@ -35,8 +35,9 @@ type DeploymentInfo struct { // 记录初始副本数
 	Replicas int32 `json:"replicas"`
 }
 
-type NamespaceName struct {
-	Name string `json:"name"`
+type DeploymentTarget struct {
+	Name     string `json:"name"`
+	Replicas int32  `json:"replicas"`
 }
 
 // ScalerSpec defines the desired state of Scaler
@@ -56,9 +57,9 @@ type ScalerSpec struct {
 
 	// +kubebuilder:validation:Maximum=23
 	// +kubebuilder:validation:Minimum=0
-	End         int             `json:"end"`
-	Replicas    int32           `json:"replicas"`
-	Deployments []NamespaceName `json:"deployments"`
+	End int `json:"end"`
+	//Replicas    int32           `json:"replicas"`
+	Deployments []DeploymentTarget `json:"deployments"`
 }
 
 // ScalerStatus defines the observed state of Scaler.

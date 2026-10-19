@@ -47,11 +47,14 @@ type ScalerReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-func scaleDeployment(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.Context, replicas int32) error {
+func scaleDeployment(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.Context) error {
 	// 从 scaled instance 遍历 deployment(map)
 	for _, deploy := range scaler.Spec.Deployments {
 		// create new deployment instance
 		deployment := &appsv1.Deployment{}
+
+		replicas := deploy.Replicas
+
 		err := r.Get(ctx, types.NamespacedName{
 			Name:      deploy.Name,
 			Namespace: scaler.Namespace,
@@ -126,7 +129,7 @@ func (r *ScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 	startTime := scaler.Spec.Start
 	endTime := scaler.Spec.End
-	replicas := scaler.Spec.Replicas
+	//replicas := scaler.Spec.Replicas
 
 	currentHour := time.Now().Local().Hour()
 	log.Info(fmt.Sprintf("currentTime: %d", currentHour))
@@ -152,7 +155,7 @@ func (r *ScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		if scaler.Status.Status != apiv1vita.SCALED {
 			// 从 scaled instance 遍历 deployment(map)
 			log.Info("Currently within the scheduling period")
-			err := scaleDeployment(scaler, r, ctx, replicas)
+			err := scaleDeployment(scaler, r, ctx)
 			if err != nil {
 				return ctrl.Result{}, err
 			}
