@@ -13,6 +13,4 @@ spec:
   replicas: 1
   deployments:
     - name: my-app01
-      namespace: test
     - name: my-app02
-      namespace: test

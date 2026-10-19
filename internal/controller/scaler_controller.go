@@ -53,7 +53,7 @@ func scaleDeployment(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.
 		deployment := &appsv1.Deployment{}
 		err := r.Get(ctx, types.NamespacedName{
 			Name:      deploy.Name,
-			Namespace: deploy.Namespace,
+			Namespace: scaler.Namespace,
 		}, deployment) // 将查询结构赋值给 deployment
 		if err != nil {
 			return err
@@ -94,6 +94,21 @@ func scaleDeployment(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.25.0/pkg/reconcile
 func (r *ScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	/*
+	 req ctrl.Request 的作用
+	    req 是 controller-runtime 传递给你的工作单元标识，告诉控制器需要处理哪个资源。
+	    结构体定义
+	       type Request struct {
+	           // 资源的 namespace
+	           Namespace string
+
+	           // 资源的 name
+	           Name string
+
+	           // 内部字段，通常不需要直接访问
+	           NamespacedName types.NamespacedName
+	       }
+	*/
 	_ = logf.FromContext(ctx)
 
 	// TODO(user): your logic here
@@ -163,7 +178,7 @@ func restoreDeployment(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx contex
 		if err := r.Get(
 			ctx, types.NamespacedName{
 				Name:      name,
-				Namespace: originalDeployInfo.Namespace,
+				Namespace: scaler.Namespace,
 			}, deployment,
 		); err != nil {
 			return err
@@ -198,7 +213,7 @@ func addAnnotations(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.C
 		deployment := &appsv1.Deployment{}
 		err := r.Get(ctx, types.NamespacedName{
 			Name:      deploy.Name,
-			Namespace: deploy.Namespace,
+			Namespace: scaler.Namespace,
 		}, deployment)
 		if err != nil {
 			return err
@@ -207,8 +222,7 @@ func addAnnotations(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.C
 		// 开始记录
 		logger.Info("add origninal state to originalDeploymentInfo map")
 		originalDeploymentInfo[deploy.Name] = apiv1vita.DeploymentInfo{
-			Namespace: deployment.Namespace,
-			Replicas:  *deployment.Spec.Replicas,
+			Replicas: *deployment.Spec.Replicas,
 		}
 		// 将原始记录加入 Annotations
 		for deploymentName, info := range originalDeploymentInfo {
