@@ -14,7 +14,14 @@ spec:
     singular: scaler
   scope: Namespaced
   versions:
-  - name: v1vita
+  - additionalPrinterColumns:
+    - jsonPath: .status.status
+      name: Status
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1vita
     schema:
       openAPIV3Schema:
         description: Scaler is the Schema for the scalers API
@@ -39,10 +46,38 @@ spec:
           spec:
             description: spec defines the desired state of Scaler
             properties:
+              deployments:
+                items:
+                  properties:
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                  - name
+                  - namespace
+                  type: object
+                type: array
+              end:
+                maximum: 23
+                minimum: 0
+                type: integer
               foo:
                 description: foo is an example field of Scaler. Edit scaler_types.go
                   to remove/update
                 type: string
+              replicas:
+                format: int32
+                type: integer
+              start:
+                maximum: 23
+                minimum: 0
+                type: integer
+            required:
+            - deployments
+            - end
+            - replicas
+            - start
             type: object
           status:
             description: status defines the observed state of Scaler
@@ -116,6 +151,10 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              status:
+                type: string
+            required:
+            - status
             type: object
         required:
         - spec

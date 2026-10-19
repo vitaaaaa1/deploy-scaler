@@ -21,8 +21,25 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+const (
+	FAILED = "Failed"
+
+	SCALED  = "scaled"
+	PENDING = "pending"
+	RESTORE = "restore"
+)
+
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+type DeploymentInfo struct { // 记录初始副本数
+	Replicas  int32  `json:"replicas"`
+	Namespace string `json:"namespace"`
+}
+
+type NamespaceName struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+}
 
 // ScalerSpec defines the desired state of Scaler
 type ScalerSpec struct {
@@ -34,6 +51,16 @@ type ScalerSpec struct {
 	// foo is an example field of Scaler. Edit scaler_types.go to remove/update
 	// +optional
 	Foo *string `json:"foo,omitempty"`
+
+	// +kubebuilder:validation:Maximum=23
+	// +kubebuilder:validation:Minimum=0
+	Start int `json:"start"`
+
+	// +kubebuilder:validation:Maximum=23
+	// +kubebuilder:validation:Minimum=0
+	End         int             `json:"end"`
+	Replicas    int32           `json:"replicas"`
+	Deployments []NamespaceName `json:"deployments"`
 }
 
 // ScalerStatus defines the observed state of Scaler.
@@ -57,10 +84,18 @@ type ScalerStatus struct {
 	// +listMapKey=type
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+
+	Status string `json:"status"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type=string,JSONPath=`.status.status`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
+// printcolumn 用于在 kubectl get scalers 输出时额外显示自定义列
+// 注意：添加 printcolumn 会覆盖默认的 NAME 和 AGE 列，需要显式定义
+// name="Status": 从 .status.status 字段提取值
+// name="Age": 从 .metadata.creationTimestamp 提取创建时间
 
 // Scaler is the Schema for the scalers API
 type Scaler struct {
