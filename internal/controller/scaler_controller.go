@@ -38,8 +38,8 @@ var logger = logf.Log.WithName("controller-scaler")
 
 // 记录 deployment 原始信息
 // key: deployment_name; value: deployment_info(namespace/replicas)
-var originalDeploymentInfo = make(map[string]apiv1vita.DeploymentInfo)
-var annotation = make(map[string]string)
+//var originalDeploymentInfo = make(map[string]apiv1vita.DeploymentInfo)
+//var annotation = make(map[string]string)
 
 // ScalerReconciler reconciles a Scaler object
 type ScalerReconciler struct {
@@ -225,6 +225,9 @@ func restoreDeployment(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx contex
 func addAnnotations(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.Context) error {
 
 	logger.Info("into addAnnotations")
+
+	var originalDeploymentInfo = make(map[string]apiv1vita.DeploymentInfo)
+	var annotation = make(map[string]string)
 
 	// 记录 deployments 原始 replica/namespace
 	for _, deploy := range scaler.Spec.Deployments {
