@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -138,7 +139,7 @@ func (r *ScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 			return ctrl.Result{}, err
 		}
 
-		// 将 sacler 中管理的 deployment 的 replica/namespace 加入到 annotaions 中
+		// 将 scaler 中管理的 deployment 的 replica/namespace 加入到 annotaions 中
 		err = addAnnotations(scaler, r, ctx)
 		if err != nil {
 			return ctrl.Result{}, client.IgnoreNotFound(err)
@@ -173,11 +174,25 @@ func (r *ScalerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 
 func restoreDeployment(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.Context) error {
 	logger.Info("starting to return the original state")
-	for name, originalDeployInfo := range originalDeploymentInfo {
+	for name, originalDeployInfo := range scaler.Annotations {
+
+		if !strings.HasPrefix(name, "scaler.com/original") {
+			continue
+		}
+
+		// "scaler.com/original-my-app" -> "my-app"
+		realName := strings.TrimPrefix(name, "scaler.com/original-")
+
+		var info apiv1vita.DeploymentInfo
+		err := json.Unmarshal([]byte(originalDeployInfo), &info)
+		if err != nil {
+			return err
+		}
+
 		deployment := &appsv1.Deployment{}
 		if err := r.Get(
 			ctx, types.NamespacedName{
-				Name:      name,
+				Name:      realName,
 				Namespace: scaler.Namespace,
 			}, deployment,
 		); err != nil {
@@ -185,8 +200,8 @@ func restoreDeployment(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx contex
 		}
 
 		// 	如果当前 deployment replicas 不等于 annotations 中记录的 original replicas 就执行回滚操作
-		if *deployment.Spec.Replicas != originalDeployInfo.Replicas {
-			*deployment.Spec.Replicas = originalDeployInfo.Replicas
+		if *deployment.Spec.Replicas != info.Replicas {
+			*deployment.Spec.Replicas = info.Replicas
 			err := r.Update(ctx, deployment)
 			if err != nil {
 				return err
@@ -231,7 +246,10 @@ func addAnnotations(scaler *apiv1vita.Scaler, r *ScalerReconciler, ctx context.C
 			if err != nil {
 				return err
 			}
-			annotation[deploymentName] = string(infoJson)
+
+			// annotation 标识添加前缀，防止冲突
+			key := fmt.Sprintf("scaler.com/original-%s", deploymentName)
+			annotation[key] = string(infoJson)
 		}
 
 		// 更新 scaler annotations
