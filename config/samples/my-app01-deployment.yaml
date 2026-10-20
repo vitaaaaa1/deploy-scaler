@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app01
+  namespace: test
+  labels:
+    app: my-app01
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app01
+  template:
+    metadata:
+      labels:
+        app: my-app01
+    spec:
+      containers:
+        - name: my-app01
+          image: anolis-registry.cn-zhangjiakou.cr.aliyuncs.com/openanolis/mysql:8.0.30-8.6
+          command: ["/bin/sh", "-c", "sleep 3600"]

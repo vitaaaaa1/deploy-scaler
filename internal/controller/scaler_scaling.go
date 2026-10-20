@@ -25,7 +25,7 @@ import (
 )
 
 // applyScalingIfNeeded applies scaling only when trigger state changed
-func (r *ScalerReconciler) applyScalingIfNeeded(ctx context.Context, scaler *apiv1alpha1.Scaler, decision scalingDecision) error {
+func (r *ScalerReconciler) applyScalingIfNeeded(ctx context.Context, scaler *apiv1alpha1.Scaler, decision *scalingDecision) error {
 	log := logf.FromContext(ctx)
 
 	// Annotation 解析失败时跳过扩缩容，避免影响正在运行的服务
@@ -50,6 +50,12 @@ func (r *ScalerReconciler) applyScalingIfNeeded(ctx context.Context, scaler *api
 			"minReplicas", decision.Config.MinReplicas)
 	} else {
 		log.Info("Scaling already applied, skipping (HPA in control)")
+	}
+
+	// 没有触发器激活时，重置 ScalingApplied，允许下次恢复默认配置
+	if decision.EffectiveTrigger == "" {
+		scaler.Status.ScalingApplied = false
+		decision.NeedsStatusUpdate = true
 	}
 
 	return nil

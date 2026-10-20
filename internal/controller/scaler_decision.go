@@ -37,9 +37,9 @@ type scalingDecision struct {
 }
 
 // resolveScalingConfig determines the scaling config based on live window and cron
-func (r *ScalerReconciler) resolveScalingConfig(ctx context.Context, scaler *apiv1alpha1.Scaler) scalingDecision {
+func (r *ScalerReconciler) resolveScalingConfig(ctx context.Context, scaler *apiv1alpha1.Scaler) *scalingDecision {
 	log := logf.FromContext(ctx)
-	decision := scalingDecision{}
+	decision := &scalingDecision{}
 
 	currentTimeMs := time.Now().UnixMilli()
 	startStr, hasStart := scaler.Annotations[trigger.AnnotationLiveStart]
@@ -47,30 +47,45 @@ func (r *ScalerReconciler) resolveScalingConfig(ctx context.Context, scaler *api
 
 	if hasStart && hasEnd {
 		decision = r.resolveLiveWindow(ctx, scaler, startStr, endStr, currentTimeMs)
+
+		// 直播窗口已结束 → 清理 LiveSession
+		if !decision.NeedsAnnotationCleanup {
+			startMs, _ := strconv.ParseInt(startStr, 10, 64)
+			endMs, _ := strconv.ParseInt(endStr, 10, 64)
+			if startMs > 0 && endMs > 0 && (currentTimeMs < startMs || currentTimeMs >= endMs) {
+				if scaler.Status.LiveSession != nil {
+					scaler.Status.LiveSession = nil
+					decision.NeedsStatusUpdate = true
+					log.Info("Live window ended, clearing session")
+				}
+			}
+		}
+
+		// 直播窗口正在进行 → 设置 LiveSession
+		if decision.EffectiveTrigger != "" && decision.Config.MinReplicas > 0 {
+			if currentTimeMs >= toInt64(startStr) && currentTimeMs < toInt64(endStr) {
+				scaler.Status.LiveSession = &apiv1alpha1.LiveSession{
+					StartTime: startStr,
+					EndTime:   endStr,
+					State:     "Active",
+				}
+				decision.NeedsStatusUpdate = true
+			}
+		}
 	} else {
-
-		log.Info("Into resolveScalingConfig not hasStart/hasEnd")
 		decision = r.resolveDefaultOrCron(ctx, scaler)
-	}
 
-	// 清理旧的 LiveSession (没有直播窗口或直播已结束)
-	if !hasStart || !hasEnd || decision.NeedsAnnotationCleanup {
+		// 没有直播窗口 → 清理 LiveSession
 		if scaler.Status.LiveSession != nil {
 			scaler.Status.LiveSession = nil
 			decision.NeedsStatusUpdate = true
 		}
 	}
 
-	// 设置 LiveSession (直播窗口内)
-	if decision.EffectiveTrigger == "prometheus" {
-		startMs, _ := strconv.ParseInt(startStr, 10, 64)
-		endMs, _ := strconv.ParseInt(endStr, 10, 64)
-		if startMs > 0 && endMs > 0 && currentTimeMs >= startMs && currentTimeMs < endMs {
-			scaler.Status.LiveSession = &apiv1alpha1.LiveSession{
-				StartTime: startStr,
-				EndTime:   endStr,
-				State:     "Active",
-			}
+	// 清理脏 Annotation
+	if decision.NeedsAnnotationCleanup {
+		if scaler.Status.LiveSession != nil {
+			scaler.Status.LiveSession = nil
 			decision.NeedsStatusUpdate = true
 		}
 	}
@@ -83,10 +98,16 @@ func (r *ScalerReconciler) resolveScalingConfig(ctx context.Context, scaler *api
 	return decision
 }
 
+// toInt64 converts string to int64, returns 0 on error
+func toInt64(s string) int64 {
+	v, _ := strconv.ParseInt(s, 10, 64)
+	return v
+}
+
 // resolveLiveWindow handles the case when live window annotation exists
-func (r *ScalerReconciler) resolveLiveWindow(ctx context.Context, scaler *apiv1alpha1.Scaler, startStr, endStr string, currentTimeMs int64) scalingDecision {
+func (r *ScalerReconciler) resolveLiveWindow(ctx context.Context, scaler *apiv1alpha1.Scaler, startStr, endStr string, currentTimeMs int64) *scalingDecision {
 	log := logf.FromContext(ctx)
-	decision := scalingDecision{}
+	decision := &scalingDecision{}
 
 	startMs, parseErr := strconv.ParseInt(startStr, 10, 64)
 	if parseErr != nil {
@@ -129,24 +150,23 @@ func (r *ScalerReconciler) resolveLiveWindow(ctx context.Context, scaler *apiv1a
 }
 
 // resolveDefaultOrCron handles the case when no live window annotation exists
-func (r *ScalerReconciler) resolveDefaultOrCron(ctx context.Context, scaler *apiv1alpha1.Scaler) scalingDecision {
-	decision := scalingDecision{}
+func (r *ScalerReconciler) resolveDefaultOrCron(ctx context.Context, scaler *apiv1alpha1.Scaler) *scalingDecision {
+	decision := &scalingDecision{}
 
-	log := logf.FromContext(ctx) // DEBUG
+	log := logf.FromContext(ctx)
 
 	for _, t := range scaler.Spec.Triggers {
 		if t.Type == "cron" && r.TriggerEval.IsCronTriggerActive(&t) {
 			decision.Config = t.Scaling
 			decision.EffectiveTrigger = t.Name
-
-			log.Info("Into resolveDefaultOrCron", "result", utils.ToJSON(decision)) // DEBUG
-
 			break
 		}
 	}
 	if decision.EffectiveTrigger == "" {
 		decision.Config = scaler.Spec.Restore
 	}
+
+	log.Info("Into resolveDefaultOrCron", "result", utils.ToJSON(decision))
 
 	return decision
 }

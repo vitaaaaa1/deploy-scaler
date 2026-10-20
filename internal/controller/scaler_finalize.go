@@ -26,7 +26,7 @@ import (
 )
 
 // finalizeReconcile cleans up invalid annotations and updates status
-func (r *ScalerReconciler) finalizeReconcile(ctx context.Context, scaler *apiv1alpha1.Scaler, decision scalingDecision) error {
+func (r *ScalerReconciler) finalizeReconcile(ctx context.Context, scaler *apiv1alpha1.Scaler, decision *scalingDecision) error {
 	log := logf.FromContext(ctx)
 
 	if decision.NeedsAnnotationCleanup {
