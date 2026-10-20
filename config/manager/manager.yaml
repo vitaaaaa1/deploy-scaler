@@ -75,6 +75,22 @@ spec:
           capabilities:
             drop:
             - "ALL"
+        env:
+        - name: PROMETHEUS_ADDRESS
+          valueFrom:
+            configMapKeyRef:
+              name: deploy-scaler-config
+              key: PROMETHEUS_ADDRESS
+        - name: PROMETHEUS_ACCESS_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: deploy-scaler-config
+              key: PROMETHEUS_ACCESS_KEY
+        - name: PROMETHEUS_SECRET_KEY
+          valueFrom:
+            configMapKeyRef:
+              name: deploy-scaler-config
+              key: PROMETHEUS_SECRET_KEY
         livenessProbe:
           httpGet:
             path: /healthz

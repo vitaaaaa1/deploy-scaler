@@ -35,8 +35,11 @@ import (
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 
-	apiv1vita "github.com/vita/deploy-scaler/api/v1vita"
+	apiv1alpha1 "github.com/vita/deploy-scaler/api/v1alpha1"
 	"github.com/vita/deploy-scaler/internal/controller"
+	"github.com/vita/deploy-scaler/internal/prometheus"
+	"github.com/vita/deploy-scaler/internal/scaling"
+	"github.com/vita/deploy-scaler/internal/trigger"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -48,7 +51,7 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(apiv1vita.AddToScheme(scheme))
+	utilruntime.Must(apiv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -62,6 +65,9 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
+	var prometheusAddr string
+	var prometheusAK string
+	var prometheusSK string
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -82,6 +88,12 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
+	flag.StringVar(&prometheusAddr, "prometheus-address", os.Getenv("PROMETHEUS_ADDRESS"),
+		"The address of the Prometheus server")
+	flag.StringVar(&prometheusAK, "prometheus-access-key", os.Getenv("PROMETHEUS_ACCESS_KEY"),
+		"Prometheus access key for authentication")
+	flag.StringVar(&prometheusSK, "prometheus-secret-key", os.Getenv("PROMETHEUS_SECRET_KEY"),
+		"Prometheus secret key for authentication")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -182,9 +194,19 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize Prometheus client with AK/SK authentication
+	promClient := prometheus.NewClient(prometheusAddr, prometheusAK, prometheusSK, ctrl.Log.WithName("prometheus"))
+
+	// Initialize scaling and trigger components
+	scaler := scaling.NewScaler(mgr.GetClient())
+	triggerEval := trigger.NewEvaluator(promClient, ctrl.Log.WithName("trigger"))
+
 	if err := (&controller.ScalerReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:      mgr.GetClient(),
+		Scheme:      mgr.GetScheme(),
+		PromClient:  promClient,
+		Scaler:      scaler,
+		TriggerEval: triggerEval,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "Failed to create controller", "controller", "scaler")
 		os.Exit(1)

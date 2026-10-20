@@ -15,13 +15,16 @@ spec:
   scope: Namespaced
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .status.status
-      name: Status
+    - jsonPath: .status.activeTrigger
+      name: ActiveTrigger
+      type: string
+    - jsonPath: .status.liveSession.state
+      name: LiveState
       type: string
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
-    name: v1vita
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: Scaler is the Schema for the scalers API
@@ -46,51 +49,121 @@ spec:
           spec:
             description: spec defines the desired state of Scaler
             properties:
-              deployments:
-                description: Replicas    int32           `json:"replicas"`
+              restore:
+                description: Restore is the default scaling configuration when no
+                  trigger is active
+                properties:
+                  minReplicas:
+                    description: MinReplicas is the target replica count (for Deployment)
+                      or minReplicas (for HPA)
+                    format: int32
+                    minimum: 0
+                    type: integer
+                required:
+                - minReplicas
+                type: object
+              scaleTargetRef:
+                description: ScaleTargetRef is the target resource to scale (HPA or
+                  Deployment)
+                properties:
+                  apiVersion:
+                    description: APIVersion of the target resource (e.g., autoscaling/v2
+                      or apps/v1)
+                    type: string
+                  kind:
+                    description: Kind of the target resource (HorizontalPodAutoscaler
+                      or Deployment)
+                    enum:
+                    - HorizontalPodAutoscaler
+                    - Deployment
+                    type: string
+                  name:
+                    description: Name of the target resource
+                    type: string
+                required:
+                - apiVersion
+                - kind
+                - name
+                type: object
+              triggers:
+                description: Triggers is a list of scaling triggers (prometheus and/or
+                  cron)
                 items:
+                  description: Trigger defines a scaling trigger (Prometheus or Cron)
                   properties:
+                    cron:
+                      description: Cron configuration (if type is cron)
+                      properties:
+                        endSchedule:
+                          description: Schedule when the trigger should stop being
+                            active (end time)
+                          type: string
+                        startSchedule:
+                          description: Schedule when the trigger becomes active (start
+                            time)
+                          type: string
+                      required:
+                      - endSchedule
+                      - startSchedule
+                      type: object
                     name:
+                      description: Name of the trigger (used for status tracking)
                       type: string
-                    replicas:
-                      format: int32
-                      type: integer
+                    prometheus:
+                      description: Prometheus configuration (if type is prometheus)
+                      properties:
+                        labels:
+                          additionalProperties:
+                            type: string
+                          description: Labels to filter the metric query
+                          type: object
+                        metric:
+                          description: Metric name to query
+                          type: string
+                      required:
+                      - metric
+                      type: object
+                    scaling:
+                      description: Scaling configuration for this trigger
+                      properties:
+                        minReplicas:
+                          description: MinReplicas is the target replica count (for
+                            Deployment) or minReplicas (for HPA)
+                          format: int32
+                          minimum: 0
+                          type: integer
+                      required:
+                      - minReplicas
+                      type: object
+                    type:
+                      description: Type of the trigger (prometheus or cron)
+                      enum:
+                      - prometheus
+                      - cron
+                      type: string
                   required:
                   - name
-                  - replicas
+                  - scaling
+                  - type
                   type: object
                 type: array
-              end:
-                maximum: 23
-                minimum: 0
-                type: integer
-              foo:
-                description: foo is an example field of Scaler. Edit scaler_types.go
-                  to remove/update
-                type: string
-              start:
-                maximum: 23
-                minimum: 0
-                type: integer
+                x-kubernetes-list-map-keys:
+                - name
+                x-kubernetes-list-type: map
             required:
-            - deployments
-            - end
-            - start
+            - restore
+            - scaleTargetRef
+            - triggers
             type: object
           status:
             description: status defines the observed state of Scaler
             properties:
+              activeTrigger:
+                description: ActiveTrigger is the name of the currently active trigger
+                type: string
               conditions:
-                description: |-
-                  conditions represent the current state of the Scaler resource.
-                  Each condition has a unique type and reflects the status of a specific aspect of the resource.
-
-                  Standard condition types include:
-                  - "Available": the resource is fully functional
-                  - "Progressing": the resource is being created or updated
-                  - "Degraded": the resource failed to reach or maintain its desired state
-
-                  The status of each condition is one of True, False, or Unknown.
+                description: Conditions represent the current state of the Scaler
+                  resource.
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -149,10 +222,35 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              status:
+              liveSession:
+                description: LiveSession contains the current live session information
+                  (if active)
+                properties:
+                  endTime:
+                    description: EndTime is the end timestamp of the live session
+                      (milliseconds)
+                    type: string
+                  startTime:
+                    description: StartTime is the start timestamp of the live session
+                      (milliseconds)
+                    type: string
+                  state:
+                    description: State is always "Active" (cleared when session ends)
+                    enum:
+                    - Active
+                    type: string
+                required:
+                - endTime
+                - startTime
+                - state
+                type: object
+              nextCronTrigger:
+                description: NextCronTrigger is the next scheduled cron trigger time
                 type: string
-            required:
-            - status
+              scalingApplied:
+                description: ScalingApplied indicates whether the current trigger's
+                  scaling config has been applied
+                type: boolean
             type: object
         required:
         - spec

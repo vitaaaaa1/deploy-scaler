@@ -1,4 +1,4 @@
 ## Append samples of your project ##
 resources:
-- api_v1vita_scaler.yaml
+- api_v1alpha1_scaler.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

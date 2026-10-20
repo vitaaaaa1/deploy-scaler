@@ -27,7 +27,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	apiv1vita "github.com/vita/deploy-scaler/api/v1vita"
+	apiv1alpha1 "github.com/vita/deploy-scaler/api/v1alpha1"
 )
 
 var _ = Describe("Scaler Controller", func() {
@@ -43,13 +43,13 @@ var _ = Describe("Scaler Controller", func() {
 			Name:      resourceName,
 			Namespace: resourceNamespace,
 		}
-		scaler := &apiv1vita.Scaler{}
+		scaler := &apiv1alpha1.Scaler{}
 
 		BeforeEach(func() {
 			By("creating the custom resource for the Kind Scaler")
 			err := k8sClient.Get(ctx, typeNamespacedName, scaler)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &apiv1vita.Scaler{
+				resource := &apiv1alpha1.Scaler{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: resourceNamespace,
@@ -62,7 +62,7 @@ var _ = Describe("Scaler Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &apiv1vita.Scaler{}
+			resource := &apiv1alpha1.Scaler{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 

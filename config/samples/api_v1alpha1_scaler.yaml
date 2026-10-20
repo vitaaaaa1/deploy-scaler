@@ -1,0 +1,40 @@
+apiVersion: api.scaler.com/v1alpha1
+kind: Scaler
+metadata:
+  name: yx-product-biz-scaler
+  namespace: test
+spec:
+  # 目标资源（HPA 或 Deployment）
+  scaleTargetRef:
+    apiVersion: autoscaling/v2
+    kind: HorizontalPodAutoscaler
+    name: my-app01
+#    apiVersion: apps/v1
+#    kind: Deployment
+#    name: my-app01
+
+  # 默认恢复策略（无触发器激活时）
+  restore:
+    minReplicas: 0
+
+  # 触发器列表
+  triggers:
+    # 触发源 A: 直播 (高优先级)
+    - type: prometheus
+      name: live-trigger
+      prometheus:
+        metric: live_room_created_total
+#        labels:
+#          roomId: "12345"
+      scaling:
+        minReplicas: 3
+
+    # 触发源 B: 定时任务 (低优先级)
+    - type: cron
+      name: evening-peak
+      cron:
+        # 每天 6:00 开始，20:00 结束
+        startSchedule: "0 6 * * *"
+        endSchedule: "0 20 * * *"
+      scaling:
+        minReplicas: 2

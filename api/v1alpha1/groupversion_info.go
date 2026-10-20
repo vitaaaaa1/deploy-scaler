@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package v1vita contains API Schema definitions for the api v1vita API group.
+// Package v1alpha1 contains API Schema definitions for the api v1alpha1 API group.
 // +kubebuilder:object:generate=true
 // +groupName=api.scaler.com
-package v1vita
+package v1alpha1
 
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,7 +28,7 @@ import (
 var (
 	// SchemeGroupVersion is group version used to register these objects.
 	// This name is used by applyconfiguration generators (e.g. controller-gen).
-	SchemeGroupVersion = schema.GroupVersion{Group: "api.scaler.com", Version: "v1vita"}
+	SchemeGroupVersion = schema.GroupVersion{Group: "api.scaler.com", Version: "v1alpha1"}
 
 	// GroupVersion is an alias for SchemeGroupVersion, for backward compatibility.
 	GroupVersion = SchemeGroupVersion

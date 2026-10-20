@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deploy-scaler-config
+  namespace: system
+  labels:
+    app.kubernetes.io/name: deploy-scaler
+    app.kubernetes.io/managed-by: kustomize
+data:
+  # Prometheus 地址（根据实际环境修改）
+  PROMETHEUS_ADDRESS: "http://prometheus.monitoring:9090"
+  
+  # Prometheus AK/SK 认证
+  PROMETHEUS_ACCESS_KEY: ""
+  PROMETHEUS_SECRET_KEY: ""
+  
+  # 轮询间隔（秒）
+  RECONCILE_INTERVAL_SECONDS: "30"
